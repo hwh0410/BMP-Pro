@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f9fc"><title>BMP Pro 2.0 | 實驗分析工作台</title>
+<link rel="stylesheet" href="./web/styles.css">
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script defer src="./web/app.js"></script></head>
+<body><div class="app">
+<aside class="side"><div class="brand"><span class="brand-icon">◈</span><div><strong>BMP Pro</strong><small>LAB ANALYTICS · V2</small></div></div>
+<div class="side-label">工作空間</div><nav><a class="active" href="#workspace">▦　BMP 分析工作台</a><a href="#visual">⌁　圖表與結果</a><a href="#export">⇩　資料匯出</a></nav>
+<div class="side-label">後續版本</div><nav><span class="muted">◌　動力學模型擬合</span><span class="muted">◌　多曲線比較</span><span class="muted">◌　共醱酵比例工具</span></nav>
+<div class="side-footer">本機瀏覽器計算<br><span>實驗資料不需上傳伺服器</span></div></aside>
+<main><header><div><div class="eyebrow">RESEARCH WORKSPACE / BMP ANALYSIS</div><h1>實驗分析工作台</h1><p>匯入 Excel、貼上數據或直接填表，即可計算 TS/VS、扣除植種空白並產生累積產氣曲線。</p></div><div class="header-actions"><button id="demoBtn" class="btn secondary">載入示範資料</button><button id="saveBtn" class="btn primary">儲存專案 JSON</button></div></header>
+<div class="notice" id="notice">目前為 2.0 第一階段：BMP 基礎計算與製圖已可使用；動力學擬合尚未移植，不會顯示未驗證的擬合數值。</div>
+<section id="workspace" class="stack"><div class="section-heading"><div><span class="step">01</span><h2>建立與匯入</h2></div><span class="hint">支援 .xlsx / .xls / .csv、Excel 貼上</span></div>
+<div class="panel"><div class="fields"><label>專案名稱<input id="project" value="BMP Experiment"></label><label>樣品名稱<input id="sample" value="Sample A"></label><label>濕樣投入量 (g)<input id="weight" type="number" step="any" value="5"></label><label>實驗平行樣數<select id="expCount"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select></label><label>植種空白平行樣數<select id="bkCount"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label></div>
+<div class="import-actions"><label class="btn secondary file-label">↑　匯入 Excel / CSV<input id="fileInput" type="file" accept=".xlsx,.xls,.csv,.json" hidden></label><button id="pasteBtn" class="btn secondary">貼上 Excel 數據</button><button id="clearBtn" class="btn minimal">清空每日數據</button><span class="hint">預期欄位：Day, Exp 1…n, BK 1…n；可在表格直接貼上</span></div></div>
+<div class="section-heading"><div><span class="step">02</span><h2>TS / VS 性質分析</h2></div><button class="btn secondary small" id="addTS">＋ 新增平行樣</button></div>
+<div class="panel table-panel"><div class="table-scroll"><table id="tsTable"><thead><tr><th>平行樣</th><th>空坩堝 (g)</th><th>濕樣＋坩堝 (g)</th><th>乾樣＋坩堝 (g)</th><th>灰分＋坩堝 (g)</th><th></th></tr></thead><tbody></tbody></table></div><div class="micro">公式與原始 Python 核心一致：加入 VS = 投入濕重 × 平均 TS 分率 × 平均 VS/TS 分率</div></div>
+<div class="section-heading"><div><span class="step">03</span><h2>每日產氣紀錄</h2></div><button class="btn secondary small" id="addDay">＋ 新增日期</button></div>
+<div class="panel table-panel"><div class="table-scroll"><table id="gasTable"><thead></thead><tbody></tbody></table></div><div class="options"><label><input type="checkbox" id="subtract" checked> 扣除植種空白</label><label>負值處理<select id="negative"><option value="keep">保留負值</option><option value="zero">負值歸零</option><option value="flag">保留並標記</option></select></label><button class="btn primary" id="analyzeBtn">計算並更新圖表 →</button></div><div class="micro">單位依舊版核心：輸入每日產氣量 mL，結果為 mL/g-VS（數值等同 L/kg-VS）。缺測時沿用區間平均分配法。</div></div></section>
+<section id="visual" class="stack"><div class="section-heading"><div><span class="step">04</span><h2>分析結果與互動圖表</h2></div><span class="hint" id="analysisStatus">等待分析</span></div><div class="metrics"><div class="metric"><span>平均 TS</span><strong id="tsMetric">—</strong><small>% wet basis</small></div><div class="metric"><span>平均 VS / TS</span><strong id="vsMetric">—</strong><small>% dry basis</small></div><div class="metric"><span>投入 VS</span><strong id="addedMetric">—</strong><small>g-VS</small></div><div class="metric featured"><span>最終累積單位產氣量</span><strong id="yieldMetric">—</strong><small>L/kg-VS</small></div></div>
+<div class="panel plot-panel"><div class="plot-head"><div><h3>累積單位產氣量</h3><p>平均曲線、平行樣及標準差</p></div><label class="check"><input id="showReps" type="checkbox"> 顯示各平行樣</label></div><div id="chart" class="chart"><p>載入示範資料或輸入實驗數據後點選「計算並更新圖表」。</p></div></div>
+<div class="panel"><div class="section-heading nested"><div><h3>計算明細</h3><p>可直接下載結果 CSV</p></div><button id="csvBtn" class="btn secondary small">↓ 匯出 CSV</button></div><div class="table-scroll"><table id="resultTable"><thead><tr><th>Day</th><th>平均日產氣 (L/kg-VS)</th><th>累積平均 (L/kg-VS)</th><th>累積 SD</th></tr></thead><tbody></tbody></table></div></div></section>
+<footer id="export">BMP Pro 2.0 · Phase 1 · 數據僅在本機處理 · 原始 Python 核心保留於 GitHub</footer></main></div>
+<dialog id="pasteDialog"><form method="dialog"><h3>貼上 Excel 資料</h3><p>先複製 Excel 的儲存格，再貼上。第一列可包含 Day / Exp 1 / BK 1 欄名；也可直接貼上數字矩陣。</p><textarea id="pasteArea" rows="8" placeholder="Day&#9;Exp 1&#9;Exp 2&#9;BK 1&#10;0&#9;0&#9;0&#9;0"></textarea><div class="dialog-actions"><button class="btn secondary">取消</button><button class="btn primary" value="import" id="importPaste">匯入</button></div></form></dialog>
+</body></html>
