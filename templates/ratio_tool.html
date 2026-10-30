@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>植種與共醱酵比例計算工具</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="/" class="back-link">← 回主頁</a>
+
+    <h1>植種與共醱酵比例計算工具</h1>
+    <p class="page-intro">
+      依據各植種與基質的 TS/VS 原始數據與樣品添加量，自動計算各樣品的添加 VS、植種比(I/S)與共醱酵比。
+    </p>
+
+    <form method="post" action="/ratio_tool" id="ratio-tool-form">
+      <input type="hidden" name="ratio_payload_json" id="ratio_payload_json">
+
+      <section class="card">
+        <div class="section-head">
+          <h2>專案基本資料</h2>
+          <div class="button-row">
+            <button type="button" class="secondary" id="btn-save-ratio-project">下載專案JSON</button>
+            <button type="button" class="secondary" id="btn-load-ratio-project">載入專案JSON</button>
+            <button type="button" class="secondary" id="btn-reset-ratio-project">恢復預設</button>
+            <input type="file" id="ratio-project-file-input" accept=".json" hidden>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <label>專案名稱
+            <input type="text" id="ratio_project_name" value="植種比與共醱酵比例計算">
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>植種樣品</h2>
+          <div class="button-row">
+            <button type="button" class="secondary" id="btn-add-inoculum">新增植種</button>
+          </div>
+        </div>
+        <div id="inocula-container" class="sample-section-grid"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>基質樣品</h2>
+          <div class="button-row">
+            <button type="button" class="secondary" id="btn-add-substrate">新增基質</button>
+          </div>
+        </div>
+        <div id="substrates-container" class="sample-section-grid"></div>
+      </section>
+
+      <div class="actions">
+        <button type="submit">開始計算</button>
+      </div>
+    </form>
+
+    {% if error %}
+      <section class="card error-box">
+        <h2>發生錯誤</h2>
+        <p>{{ error }}</p>
+      </section>
+    {% endif %}
+
+    {% if ratio_result %}
+      <section class="card">
+        <h2>計算結果</h2>
+
+        <div class="summary-grid">
+          <section class="card compact-card">
+            <h3>植種比(I/S)</h3>
+            <p class="ratio-result-value">{{ ratio_result.is_ratio_text }}</p>
+            <p class="ratio-result-subtext">
+              植種總VS = {{ '%.6f'|format(ratio_result.inoculum_total_vs_g) }} g<br>
+              基質總VS = {{ '%.6f'|format(ratio_result.substrate_total_vs_g) }} g
+            </p>
+          </section>
+
+          <section class="card compact-card">
+            <h3>共醱酵比</h3>
+            <p class="ratio-result-value">{{ ratio_result.codigestion_ratio_text }}</p>
+            <p class="ratio-result-subtext">
+              比例基礎為各基質之添加VS比
+            </p>
+          </section>
+        </div>
+
+        <div class="plot-result-section">
+          <h3>植種摘要</h3>
+          <div class="preview-box">
+            <div class="preview-table-wrap">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th>樣品名稱</th>
+                    <th>添加量(g)</th>
+                    <th>平行樣數</th>
+                    <th>TS</th>
+                    <th>VS/TS</th>
+                    <th>VS(濕基)</th>
+                    <th>添加VS(g)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in ratio_result.inocula_summary %}
+                  <tr>
+                    <td>{{ row.name }}</td>
+                    <td>{{ '%.4f'|format(row.wet_weight_g) }}</td>
+                    <td>{{ row.replicate_count }}</td>
+                    <td>{{ '%.6f'|format(row.ts_fraction_mean) }}</td>
+                    <td>{{ '%.6f'|format(row.vs_ts_fraction_mean) }}</td>
+                    <td>{{ '%.6f'|format(row.vs_wet_fraction_mean) }}</td>
+                    <td>{{ '%.6f'|format(row.added_vs_g) }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="plot-result-section">
+          <h3>基質摘要</h3>
+          <div class="preview-box">
+            <div class="preview-table-wrap">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th>樣品名稱</th>
+                    <th>添加量(g)</th>
+                    <th>平行樣數</th>
+                    <th>TS</th>
+                    <th>VS/TS</th>
+                    <th>VS(濕基)</th>
+                    <th>添加VS(g)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in ratio_result.substrates_summary %}
+                  <tr>
+                    <td>{{ row.name }}</td>
+                    <td>{{ '%.4f'|format(row.wet_weight_g) }}</td>
+                    <td>{{ row.replicate_count }}</td>
+                    <td>{{ '%.6f'|format(row.ts_fraction_mean) }}</td>
+                    <td>{{ '%.6f'|format(row.vs_ts_fraction_mean) }}</td>
+                    <td>{{ '%.6f'|format(row.vs_wet_fraction_mean) }}</td>
+                    <td>{{ '%.6f'|format(row.added_vs_g) }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="plot-download-row">
+          <button type="button" class="secondary" id="btn-download-ratio-csv">下載結果報表CSV</button>
+        </div>
+      </section>
+
+      <script>
+        window.RATIO_RESULT = {{ ratio_result | tojson }};
+      </script>
+    {% else %}
+      <script>
+        window.RATIO_RESULT = null;
+      </script>
+    {% endif %}
+
+    <script>
+      window.INITIAL_RATIO_PAYLOAD = {{ initial_ratio_payload | tojson if initial_ratio_payload else 'null' }};
+    </script>
+    <script src="{{ url_for('static', filename='ratio_tool.js') }}"></script>
+  </div>
+</body>
+</html>
