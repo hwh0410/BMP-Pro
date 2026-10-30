@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多曲線製圖</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="/" class="back-link">← 回主頁</a>
+
+    <h1>多曲線製圖</h1>
+    <p class="page-intro">
+      上傳由BMP分析工具匯出的累積產氣CSV，可將多條曲線整合在同一張圖中，並進行單條曲線樣式編輯與匯出。
+    </p>
+
+    <section class="card upload-card">
+      <div class="section-head">
+        <h2>1. 上傳曲線CSV</h2>
+      </div>
+
+      <form method="post" action="/multi_curve" enctype="multipart/form-data" class="upload-form">
+        <label class="file-input-label">
+          選擇CSV檔案(可多選)
+          <input type="file" name="curve_files" id="curve_files" accept=".csv" multiple required>
+        </label>
+
+        <div class="button-row top-gap">
+          <button type="submit">載入曲線</button>
+        </div>
+      </form>
+
+      <p class="tip-box">
+        支援單元1輸出的累積產氣CSV，也支援單一CSV含多條曲線欄位的格式。
+      </p>
+    </section>
+
+    {% if error %}
+      <section class="card error-box">
+        <h2>發生錯誤</h2>
+        <p>{{ error }}</p>
+      </section>
+    {% endif %}
+
+    {% if curve_payload %}
+      <div class="plot-layout">
+        <section class="card plot-settings-card">
+          <div class="plot-settings-header">
+            <h2>圖表設定</h2>
+            <div class="button-row centered-button-row">
+              <button type="button" class="secondary" id="btn-import-multi-settings">匯入設定檔</button>
+              <button type="button" class="secondary" id="btn-export-multi-settings">匯出設定檔</button>
+              <button type="button" class="secondary" id="btn-reset-multi-settings">恢復預設</button>
+              <input type="file" id="multi-settings-file-input" accept=".json" hidden>
+            </div>
+          </div>
+
+          <div class="plot-settings-grid">
+            <label>目前編輯曲線
+              <select id="mc_curve_select"></select>
+            </label>
+
+            <label>曲線名稱
+              <input type="text" id="mc_curve_name">
+            </label>
+
+            <label>曲線顏色
+              <input type="color" id="mc_curve_color">
+            </label>
+
+            <label>點形狀
+              <select id="mc_curve_marker_symbol">
+                <option value="circle">circle</option>
+                <option value="square">square</option>
+                <option value="diamond">diamond</option>
+                <option value="cross">cross</option>
+                <option value="x">x</option>
+                <option value="triangle-up">triangle-up</option>
+                <option value="triangle-down">triangle-down</option>
+              </select>
+            </label>
+
+            <label>點大小
+              <input type="number" id="mc_curve_marker_size" step="1" min="1">
+            </label>
+
+            <label>線寬
+              <input type="number" id="mc_curve_line_width" step="0.5" min="0.5">
+            </label>
+
+            <label>圖寬(px)
+              <input type="number" id="mc_plot_width" step="1">
+            </label>
+
+            <label>圖高(px)
+              <input type="number" id="mc_plot_height" step="1">
+            </label>
+
+            <label>x軸刻度
+              <input type="number" id="mc_x_dtick" step="any">
+            </label>
+
+            <label>y軸刻度
+              <input type="number" id="mc_y_dtick" step="any">
+            </label>
+
+            <label>x軸標題
+              <input type="text" id="mc_x_title">
+            </label>
+
+            <label>y軸標題
+              <input type="text" id="mc_y_title">
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="mc_curve_visible">
+              顯示目前曲線
+            </label>
+          </div>
+
+          <div class="button-row top-gap">
+            <button type="button" id="btn-update-multi-plot">更新圖表</button>
+          </div>
+
+          <p class="tip-box">
+            使用下拉選單選取目前要編輯的曲線，不需為每條曲線各自展開一整塊設定區。
+          </p>
+        </section>
+
+        <section class="card plot-card">
+          <h2>多曲線圖</h2>
+          <div id="multi-plot-container" class="plot-container"></div>
+
+          <div class="plot-download-row">
+            <button type="button" class="secondary" id="btn-download-multi-image">
+              下載曲線圖
+            </button>
+            <button type="button" class="secondary" id="btn-download-multi-csv">
+              下載累積產氣CSV
+            </button>
+          </div>
+
+          <div class="plot-result-section">
+            <h3>累積產氣表格預覽</h3>
+            <div id="multi-cumulative-preview-box" class="preview-box"></div>
+          </div>
+        </section>
+      </div>
+
+      <script>
+        window.MULTI_CURVE_PAYLOAD = {{ curve_payload | tojson }};
+        window.DEFAULT_MULTI_CURVE_SETTINGS = {{ default_multi_curve_settings | tojson }};
+      </script>
+      <script src="{{ url_for('static', filename='multi_curve.js') }}"></script>
+    {% else %}
+      <section class="card placeholder-card">
+        <div class="placeholder-icon">📈</div>
+        <h2>尚未載入曲線</h2>
+        <p class="page-intro">請先上傳一個或多個累積產氣CSV，系統會在同頁完成曲線整合、編輯與匯出。</p>
+      </section>
+    {% endif %}
+  </div>
+</body>
+</html>
