@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMP分析結果</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="/bmp" class="back-link">← 回BMP分析工具</a>
+
+    {% if error %}
+      <div class="card error-box">
+        <h2>發生錯誤</h2>
+        <p>{{ error }}</p>
+      </div>
+    {% else %}
+      <h1>BMP分析結果</h1>
+
+      <div class="summary-grid">
+        <section class="card compact-card">
+          <h2>專案資訊</h2>
+          <ul>
+            <li>專案名稱：{{ project.project_name }}</li>
+            <li>樣品名稱：{{ project.sample_name }}</li>
+            <li>樣品添加濕重(g)：{{ project.sample_wet_weight_g }}</li>
+            <li>實驗組重複數：{{ project.exp_replicates }}</li>
+            <li>BK組重複數：{{ project.bk_replicates }}</li>
+          </ul>
+        </section>
+
+        <section class="card compact-card">
+          <h2>TS/VS摘要</h2>
+          <ul>
+            <li>TS平均值(fraction)：{{ '%.6f'|format(tsvs_summary.ts_fraction_mean) }}</li>
+            <li>VS/TS平均值(fraction)：{{ '%.6f'|format(tsvs_summary.vs_ts_fraction_mean) }}</li>
+            <li>VS(濕基)平均值(fraction)：{{ '%.6f'|format(tsvs_summary.vs_wet_fraction_mean) }}</li>
+            <li>添加總VS(g)：{{ '%.6f'|format(added_vs_g) }}</li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="plot-layout">
+        <section class="card plot-settings-card">
+          <div class="plot-settings-header">
+            <h2>圖表設定</h2>
+            <div class="button-row centered-button-row">
+              <button type="button" class="secondary" id="btn-import-plot-settings">匯入設定檔</button>
+              <button type="button" class="secondary" id="btn-export-plot-settings">匯出設定檔</button>
+              <button type="button" class="secondary" id="btn-reset-plot-settings">恢復預設</button>
+              <input type="file" id="plot-settings-file-input" accept=".json" hidden>
+            </div>
+          </div>
+
+          <div class="plot-settings-grid">
+            <div class="fit-models-block">
+              <div class="fit-models-title">擬合模型(可複選)</div>
+              <div class="fit-models-list">
+                {% for model in plot_payload.fit_model_options %}
+                <label class="fit-model-option">
+                  <input
+                    type="checkbox"
+                    class="fit-model-checkbox"
+                    value="{{ model.key }}"
+                    {% if model.key == plot_payload.default_model %}checked{% endif %}
+                  >
+                  {{ model.label }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <label>圖寬(px)
+              <input type="number" id="plot_width" step="1">
+            </label>
+
+            <label>圖高(px)
+              <input type="number" id="plot_height" step="1">
+            </label>
+
+            <label>平均曲線顏色
+              <input type="color" id="mean_color">
+            </label>
+
+            <label>點形狀
+              <select id="marker_symbol">
+                <option value="circle">circle</option>
+                <option value="square">square</option>
+                <option value="diamond">diamond</option>
+                <option value="cross">cross</option>
+                <option value="x">x</option>
+                <option value="triangle-up">triangle-up</option>
+                <option value="triangle-down">triangle-down</option>
+              </select>
+            </label>
+
+            <label>點大小
+              <input type="number" id="marker_size" step="1" min="1">
+            </label>
+
+            <label>平均線寬
+              <input type="number" id="mean_line_width" step="0.5" min="0.5">
+            </label>
+
+            <label>x軸刻度
+              <input type="number" id="x_dtick" step="any">
+            </label>
+
+            <label>y軸刻度
+              <input type="number" id="y_dtick" step="any">
+            </label>
+
+            <label>x軸標題
+              <input type="text" id="x_title">
+            </label>
+
+            <label>y軸標題
+              <input type="text" id="y_title">
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="show_replicates">
+              顯示各重複累積曲線
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="show_fit">
+              顯示擬合曲線
+            </label>
+          </div>
+
+          <div class="button-row top-gap">
+            <button type="button" id="btn-update-plot">更新圖表</button>
+          </div>
+
+          <p class="tip-box">
+            擬合模型可複選。所有擬合線統一為虛線，系統會用固定顏色區分不同模型。
+          </p>
+        </section>
+
+        <section class="card plot-card">
+          <h2>曲線圖</h2>
+          <div id="plot-container" class="plot-container"></div>
+
+          <div class="plot-download-row">
+            <button type="button" class="secondary" onclick="downloadPlotImage()">
+              下載曲線圖
+            </button>
+            <button type="button" class="secondary" onclick="downloadExportCsv()">
+              下載累積產氣CSV
+            </button>
+            <button type="button" class="secondary" onclick="downloadFitCsv()">
+              下載擬合結果CSV
+            </button>
+          </div>
+
+          <div class="plot-result-section">
+            <h3>累積產氣表格預覽</h3>
+            <div id="cumulative-preview-box" class="preview-box"></div>
+          </div>
+
+          <div class="plot-result-section">
+            <h3>模型擬合結果</h3>
+            <div id="fit-summary-box" class="fit-summary-box"></div>
+          </div>
+        </section>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if not error %}
+  <script>
+    const exportCsvText = {{ export_csv_text | tojson }};
+    const exportFilename = {{ export_filename | tojson }};
+    const plotPayload = {{ plot_payload | tojson }};
+    const defaultPlotSettings = {{ default_plot_settings | tojson }};
+
+    const FIT_MODEL_COLORS = {
+      logistic: "#d62728",
+      gompertz: "#2ca02c",
+      richards: "#9467bd",
+      first_order: "#ff7f0e",
+      transfer: "#8c564b",
+      superimposed: "#e377c2",
+    };
+
+    const PARAM_LABEL_MAP = {
+      Pmax: "Pmax",
+      mu: "μ",
+      lag: "λ",
+      k: "k",
+      d: "d",
+      P1max: "P₁max",
+      P2max: "P₂max",
+    };
+
+    const PARAM_ORDER = ["Pmax", "mu", "lag", "k", "d", "P1max", "P2max"];
+
+    function byId(id) {
+      return document.getElementById(id);
+    }
+
+    function toNumberOrNull(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function downloadTextFile(filename, text, mime = "application/json;charset=utf-8") {
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function csvEscape(value) {
+      const s = value === null || value === undefined ? "" : String(value);
+      if (s.includes(",") || s.includes("\"") || s.includes("\n")) {
+        return `"${s.replace(/"/g, "\"\"")}"`;
+      }
+      return s;
+    }
+
+    function downloadExportCsv() {
+      const blob = new Blob([exportCsvText], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = exportFilename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadPlotImage() {
+      const settings = getPlotSettings();
+      Plotly.downloadImage("plot-container", {
+        format: "png",
+        width: settings.width,
+        height: settings.height,
+        filename: `${plotPayload.project_name}_curve`,
+        scale: 2,
+      });
+    }
+
+    function getSelectedFitModels() {
+      return Array.from(document.querySelectorAll(".fit-model-checkbox:checked"))
+        .map((el) => el.value);
+    }
+
+    function setSelectedFitModels(modelKeys) {
+      const set = new Set(modelKeys || []);
+      document.querySelectorAll(".fit-model-checkbox").forEach((el) => {
+        el.checked = set.has(el.value);
+      });
+    }
+
+    function getPlotSettings() {
+      return {
+        width: toNumberOrNull(byId("plot_width").value) ?? 800,
+        height: toNumberOrNull(byId("plot_height").value) ?? 500,
+        mean_color: byId("mean_color").value || "#1f77b4",
+        marker_symbol: byId("marker_symbol").value || "circle",
+        marker_size: toNumberOrNull(byId("marker_size").value) ?? 8,
+        x_dtick: toNumberOrNull(byId("x_dtick").value),
+        y_dtick: toNumberOrNull(byId("y_dtick").value),
+        show_replicates: byId("show_replicates").checked,
+        show_fit: byId("show_fit").checked,
+        selected_fit_models: getSelectedFitModels(),
+        mean_line_width: toNumberOrNull(byId("mean_line_width").value) ?? 3,
+        x_title: byId("x_title").value || "Time(day)",
+        y_title: byId("y_title").value || "Yield(L/kg-VS)",
+      };
+    }
+
+    function setPlotSettings(settings) {
+      byId("plot_width").value = settings.width ?? 800;
+      byId("plot_height").value = settings.height ?? 500;
+      byId("mean_color").value = settings.mean_color ?? "#1f77b4";
+      byId("marker_symbol").value = settings.marker_symbol ?? "circle";
+      byId("marker_size").value = settings.marker_size ?? 8;
+      byId("x_dtick").value = settings.x_dtick ?? "";
+      byId("y_dtick").value = settings.y_dtick ?? "";
+      byId("show_replicates").checked = Boolean(settings.show_replicates);
+      byId("show_fit").checked = settings.show_fit !== false;
+      byId("mean_line_width").value = settings.mean_line_width ?? 3;
+      byId("x_title").value = settings.x_title ?? "Time(day)";
+      byId("y_title").value = settings.y_title ?? "Yield(L/kg-VS)";
+
+      if (Array.isArray(settings.selected_fit_models)) {
+        setSelectedFitModels(settings.selected_fit_models);
+      } else if (settings.fit_model) {
+        setSelectedFitModels([settings.fit_model]);
+      } else {
+        setSelectedFitModels([plotPayload.default_model]);
+      }
+    }
+
+    function getSelectedFitResults() {
+      return getSelectedFitModels()
+        .map((key) => plotPayload.fit_results[key])
+        .filter(Boolean);
+    }
+
+    function buildSampledPoints() {
+      const x = [];
+      const y = [];
+
+      plotPayload.days.forEach((day, idx) => {
+        if (plotPayload.sampled_mask[idx]) {
+          x.push(day);
+          y.push(plotPayload.cumulative_mean[idx]);
+        }
+      });
+
+      return { x, y };
+    }
+
+    function getUnionParameterNames(fitResults) {
+      const found = new Set();
+
+      fitResults.forEach((fit) => {
+        if (fit.success && Array.isArray(fit.parameter_names)) {
+          fit.parameter_names.forEach((name) => found.add(name));
+        }
+      });
+
+      const ordered = PARAM_ORDER.filter((name) => found.has(name));
+      const extras = Array.from(found).filter((name) => !PARAM_ORDER.includes(name)).sort();
+      return ordered.concat(extras);
+    }
+
+    function renderCumulativePreview() {
+      const box = byId("cumulative-preview-box");
+      const sampleName = plotPayload.sample_name;
+
+      const rowsHtml = plotPayload.days.map((day, idx) => {
+        const value = plotPayload.sampled_mask[idx]
+          ? Number(plotPayload.cumulative_mean[idx]).toFixed(6)
+          : "";
+        return `
+          <tr>
+            <td>${day}</td>
+            <td>${value}</td>
+          </tr>
+        `;
+      }).join("");
+
+      box.innerHTML = `
+        <div class="preview-table-wrap">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>${sampleName}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderFitSummary() {
+      const box = byId("fit-summary-box");
+      const selectedFits = getSelectedFitResults();
+
+      if (selectedFits.length === 0) {
+        box.innerHTML = `<div class="fit-empty">請至少勾選一個擬合模型。</div>`;
+        return;
+      }
+
+      const paramNames = getUnionParameterNames(selectedFits);
+
+      const thead = `
+        <thead>
+          <tr>
+            <th>Model</th>
+            ${paramNames.map((name) => `<th>${PARAM_LABEL_MAP[name] ?? name}</th>`).join("")}
+            <th>R²</th>
+            <th>RMSE</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+      `;
+
+      const tbody = selectedFits.map((fit) => {
+        const cells = paramNames.map((name) => {
+          if (!fit.success) return `<td></td>`;
+          const value = fit.parameters?.[name];
+          return `<td>${value === undefined ? "" : Number(value).toFixed(4)}</td>`;
+        }).join("");
+
+        const r2 = fit.success ? Number(fit.r_squared).toFixed(4) : "";
+        const rmse = fit.success ? Number(fit.rmse).toFixed(4) : "";
+        const status = fit.success ? "OK" : (fit.error || "Fit failed");
+
+        return `
+          <tr>
+            <td>${fit.model_label}</td>
+            ${cells}
+            <td>${r2}</td>
+            <td>${rmse}</td>
+            <td>${status}</td>
+          </tr>
+        `;
+      }).join("");
+
+      box.innerHTML = `
+        <div class="fit-summary-table-wrap">
+          <table class="fit-summary-table">
+            ${thead}
+            <tbody>${tbody}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderPlot() {
+      const settings = getPlotSettings();
+      const sampled = buildSampledPoints();
+      const traces = [];
+      const selectedFits = getSelectedFitResults();
+
+      if (settings.show_replicates) {
+        plotPayload.replicates.forEach((rep) => {
+          traces.push({
+            x: rep.x,
+            y: rep.y,
+            mode: "lines",
+            name: rep.name,
+            line: {
+              color: "rgba(148, 163, 184, 0.9)",
+              width: 1.5,
+            },
+            hovertemplate: "%{x}<br>%{y:.4f}<extra>" + rep.name + "</extra>",
+          });
+        });
+      }
+
+      traces.push({
+        x: plotPayload.days,
+        y: plotPayload.cumulative_mean,
+        mode: "lines",
+        name: plotPayload.sample_name,
+        line: {
+          color: settings.mean_color,
+          width: settings.mean_line_width,
+        },
+        hovertemplate: "%{x}<br>%{y:.4f}<extra>" + plotPayload.sample_name + "</extra>",
+      });
+
+      traces.push({
+        x: sampled.x,
+        y: sampled.y,
+        mode: "markers",
+        name: "實際採樣點",
+        marker: {
+          color: settings.mean_color,
+          symbol: settings.marker_symbol,
+          size: settings.marker_size,
+          line: {
+            color: "#ffffff",
+            width: 1,
+          },
+        },
+        hovertemplate: "%{x}<br>%{y:.4f}<extra>實際採樣點</extra>",
+      });
+
+      if (settings.show_fit) {
+        selectedFits.forEach((fit) => {
+          if (!fit.success) return;
+
+          traces.push({
+            x: fit.t,
+            y: fit.y_fit,
+            mode: "lines",
+            name: fit.model_label,
+            line: {
+              color: FIT_MODEL_COLORS[fit.model_key] || "#d62728",
+              width: 2.5,
+              dash: "dash",
+            },
+            hovertemplate: "%{x}<br>%{y:.4f}<extra>" + fit.model_label + "</extra>",
+          });
+        });
+      }
+
+      const layout = {
+        width: settings.width,
+        height: settings.height,
+        template: "plotly_white",
+        hovermode: "x unified",
+        margin: { l: 70, r: 30, t: 40, b: 60 },
+        legend: { orientation: "h", y: 1.12 },
+        xaxis: {
+          title: settings.x_title,
+          dtick: settings.x_dtick ?? undefined,
+          showgrid: true,
+          zeroline: false,
+        },
+        yaxis: {
+          title: settings.y_title,
+          dtick: settings.y_dtick ?? undefined,
+          showgrid: true,
+          zeroline: false,
+        },
+      };
+
+      const config = {
+        responsive: true,
+        displaylogo: false,
+        toImageButtonOptions: {
+          format: "png",
+          filename: `${plotPayload.project_name}_plot`,
+          scale: 2,
+        },
+      };
+
+      Plotly.newPlot("plot-container", traces, layout, config);
+      renderCumulativePreview();
+      renderFitSummary();
+    }
+
+    function exportPlotSettings() {
+      const settings = getPlotSettings();
+      const filename = `${plotPayload.project_name}_plot_settings.json`;
+      downloadTextFile(filename, JSON.stringify(settings, null, 2));
+    }
+
+    function importPlotSettings(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        const settings = JSON.parse(text);
+        setPlotSettings(settings);
+        renderPlot();
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    function downloadFitCsv() {
+      const selectedFits = getSelectedFitResults();
+
+      if (selectedFits.length === 0) {
+        alert("請至少勾選一個擬合模型。");
+        return;
+      }
+
+      const paramNames = getUnionParameterNames(selectedFits);
+      const header = [
+        "Model",
+        ...paramNames.map((name) => PARAM_LABEL_MAP[name] ?? name),
+        "R²",
+        "RMSE",
+        "Status",
+      ];
+
+      const rows = selectedFits.map((fit) => {
+        const paramValues = paramNames.map((name) => {
+          if (!fit.success) return "";
+          const value = fit.parameters?.[name];
+          return value === undefined ? "" : Number(value).toFixed(6);
+        });
+
+        return [
+          fit.model_label,
+          ...paramValues,
+          fit.success ? Number(fit.r_squared).toFixed(6) : "",
+          fit.success ? Number(fit.rmse).toFixed(6) : "",
+          fit.success ? "OK" : (fit.error || "Fit failed"),
+        ];
+      });
+
+      const csvText = "\uFEFF" + [header, ...rows]
+        .map((row) => row.map(csvEscape).join(","))
+        .join("\n");
+
+      const filename = `${plotPayload.project_name}_fit_summary.csv`;
+      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function bindEvents() {
+      byId("btn-update-plot").addEventListener("click", renderPlot);
+      byId("btn-export-plot-settings").addEventListener("click", exportPlotSettings);
+
+      byId("btn-import-plot-settings").addEventListener("click", () => {
+        byId("plot-settings-file-input").click();
+      });
+
+      byId("plot-settings-file-input").addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (file) importPlotSettings(file);
+        e.target.value = "";
+      });
+
+      byId("btn-reset-plot-settings").addEventListener("click", () => {
+        setPlotSettings(defaultPlotSettings);
+        renderPlot();
+      });
+
+      document.querySelectorAll(".fit-model-checkbox").forEach((el) => {
+        el.addEventListener("change", renderPlot);
+      });
+
+      byId("show_fit").addEventListener("change", renderPlot);
+      byId("show_replicates").addEventListener("change", renderPlot);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      setPlotSettings(defaultPlotSettings);
+      bindEvents();
+      renderPlot();
+    });
+  </script>
+  {% endif %}
+</body>
+</html>
