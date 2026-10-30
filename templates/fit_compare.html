@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模型擬合工具</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="/" class="back-link">← 回主頁</a>
+
+    <h1>模型擬合工具</h1>
+    <p class="page-intro">
+      上傳多條累積產氣CSV，系統會固定生成 1 張原始點位比較圖與 6 張模型擬合比較圖，並附上 6 張參數表。
+    </p>
+
+    <section class="card upload-card">
+      <div class="section-head">
+        <h2>上傳曲線CSV</h2>
+      </div>
+
+      <form method="post" action="/fit_compare" enctype="multipart/form-data" class="upload-form">
+        <label class="file-input-label">
+          選擇CSV檔案(可多選)
+          <input type="file" name="curve_files" id="curve_files" accept=".csv" multiple required>
+        </label>
+
+        <div class="button-row top-gap">
+          <button type="submit">載入曲線</button>
+        </div>
+      </form>
+
+      <p class="tip-box">
+        支援單元1輸出的累積產氣CSV，也支援單一CSV含多條曲線欄位的格式。
+      </p>
+    </section>
+
+    {% if error %}
+      <section class="card error-box">
+        <h2>發生錯誤</h2>
+        <p>{{ error }}</p>
+      </section>
+    {% endif %}
+
+    {% if fit_compare_payload %}
+      <section class="card fit-compare-settings-wide">
+        <div class="plot-settings-header">
+          <h2>圖表設定</h2>
+          <div class="button-row centered-button-row">
+            <button type="button" class="secondary" id="btn-import-fit-settings">匯入設定檔</button>
+            <button type="button" class="secondary" id="btn-export-fit-settings">匯出設定檔</button>
+            <button type="button" class="secondary" id="btn-reset-fit-settings">恢復預設</button>
+            <input type="file" id="fit-settings-file-input" accept=".json" hidden>
+          </div>
+        </div>
+
+        <div class="fit-compare-settings-grid">
+          <label>圖寬(px)
+            <input type="number" id="fc_plot_width" step="1">
+          </label>
+
+          <label>圖高(px)
+            <input type="number" id="fc_plot_height" step="1">
+          </label>
+
+          <label>x軸刻度
+            <input type="number" id="fc_x_dtick" step="any">
+          </label>
+
+          <label>y軸刻度
+            <input type="number" id="fc_y_dtick" step="any">
+          </label>
+
+          <label>x軸標題
+            <input type="text" id="fc_x_title">
+          </label>
+
+          <label>y軸標題
+            <input type="text" id="fc_y_title">
+          </label>
+        </div>
+
+        <div class="button-row top-gap">
+          <button type="button" id="btn-update-fit-compare">更新預覽</button>
+        </div>
+
+        <p class="tip-box">
+          本單元固定顯示原始點位比較圖，以及 6 種模型的擬合比較圖與參數表。
+        </p>
+      </section>
+
+      <section class="card plot-card">
+        <h2>模型比較預覽</h2>
+        <div id="fit-compare-model-sections" class="fit-compare-model-sections"></div>
+      </section>
+
+      <section class="card download-section-wide">
+        <h2>下載檔案</h2>
+
+        <div class="download-two-columns">
+          <div class="download-column">
+            <h3>下載圖檔</h3>
+            <div class="download-options-grid">
+              <label class="checkbox-label download-option">
+                <input type="checkbox" class="fc-download-plot-checkbox" value="observed" checked>
+                原始點位比較圖
+              </label>
+
+              {% for model in fit_compare_payload.fit_model_options %}
+              <label class="checkbox-label download-option">
+                <input type="checkbox" class="fc-download-plot-checkbox" value="{{ model.key }}" checked>
+                {{ model.label }} 圖
+              </label>
+              {% endfor %}
+            </div>
+
+            <div class="button-row top-gap">
+              <button type="button" class="secondary" id="btn-download-fit-images">
+                下載勾選圖檔
+              </button>
+            </div>
+          </div>
+
+          <div class="download-column">
+            <h3>下載資料表</h3>
+            <div class="download-options-grid">
+              {% for model in fit_compare_payload.fit_model_options %}
+              <label class="checkbox-label download-option">
+                <input type="checkbox" class="fc-download-table-checkbox" value="{{ model.key }}" checked>
+                {{ model.label }} 參數表
+              </label>
+              {% endfor %}
+            </div>
+
+            <div class="button-row top-gap">
+              <button type="button" class="secondary" id="btn-download-fit-summary-csv">
+                下載勾選資料表CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <script>
+        window.FIT_COMPARE_PAYLOAD = {{ fit_compare_payload | tojson }};
+        window.DEFAULT_FIT_COMPARE_SETTINGS = {{ default_fit_compare_settings | tojson }};
+      </script>
+      <script src="{{ url_for('static', filename='fit_compare.js') }}"></script>
+    {% else %}
+      <section class="card placeholder-card">
+        <div class="placeholder-icon">📊</div>
+        <h2>尚未載入曲線</h2>
+        <p class="page-intro">請先上傳一個或多個累積產氣CSV，系統會在同頁生成固定模型的比較圖與參數表。</p>
+      </section>
+    {% endif %}
+  </div>
+</body>
+</html>
