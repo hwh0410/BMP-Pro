@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMP Pro 主頁</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="home-hero card">
+      <h1>BMP Pro 生化甲烷潛能試驗數據分析平台</h1>
+      <p class="page-intro">
+        本平台整合 BMP分析、曲線整合製圖、植種與共醱酵比例計算，以及模型擬合比較等功能單元。
+      </p>
+    </section>
+
+    <section class="unit-grid">
+      {% for unit in units %}
+      <a href="{{ unit.route }}" class="unit-card-link">
+        <article class="card unit-card">
+          <div class="unit-card-top">
+            <div class="unit-icon">{{ unit.icon }}</div>
+            <span class="unit-status unit-status-{{ unit.status }}">{{ unit.status_text }}</span>
+          </div>
+          <h2>{{ unit.title }}</h2>
+          <p>{{ unit.description }}</p>
+        </article>
+      </a>
+      {% endfor %}
+    </section>
+  </div>
+</body>
+</html>
