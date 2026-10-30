@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMP分析工具</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="/" class="back-link">← 回主頁</a>
+
+    <h1>BMP分析工具</h1>
+    <p class="page-intro">此工具依據輸入BMP實驗原始數據換算單位產氣與模型擬合，支援Excel表格貼上、專案下載與重開。</p>
+
+    <form method="post" action="/analyze" id="bmp-form">
+      <input type="hidden" name="tsvs_json" id="tsvs_json">
+      <input type="hidden" name="gas_json" id="gas_json">
+
+      <section class="card">
+        <div class="section-head">
+          <h2>1. 專案基本資料</h2>
+          <div class="button-row">
+            <button type="button" class="secondary" id="btn-save-project">下載專案JSON</button>
+            <button type="button" class="secondary" id="btn-load-project">載入專案JSON</button>
+            <input type="file" id="project-file-input" accept=".json" hidden>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <label>專案名稱
+            <input type="text" name="project_name" id="project_name" value="牛糞_BMP_測試">
+          </label>
+
+          <label>樣品名稱
+            <input type="text" name="sample_name" id="sample_name" value="牛糞">
+          </label>
+
+          <label>樣品添加濕重(g)
+            <input type="number" step="any" name="sample_wet_weight_g" id="sample_wet_weight_g" value="5.0">
+          </label>
+
+          <label>實驗組重複數
+            <input type="number" min="1" name="exp_replicates" id="exp_replicates" value="3">
+          </label>
+
+          <label>BK組重複數
+            <input type="number" min="0" name="bk_replicates" id="bk_replicates" value="2">
+          </label>
+
+          <label>BK扣除
+            <select name="apply_bk_subtraction" id="apply_bk_subtraction">
+              <option value="yes">是</option>
+              <option value="no">否</option>
+            </select>
+          </label>
+
+          <label>BK扣除後負值處理
+            <select name="negative_policy" id="negative_policy">
+              <option value="keep">保留負值</option>
+              <option value="zero">設為0</option>
+              <option value="flag">僅標記異常</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>2. TS/VS原始數據</h2>
+          <div class="button-row">
+            <button type="button" class="secondary" id="btn-add-tsvs-row">新增列</button>
+            <button type="button" class="secondary" id="btn-del-tsvs-row">刪除最後一列</button>
+          </div>
+        </div>
+
+        <p>欄位：空坩鍋重、加料後重、105°C烘乾後重、550°C灰化後重。可從Excel直接貼上。</p>
+
+        <div class="table-wrap">
+          <table id="tsvs-table" class="edit-table"></table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>3. 每日產氣資料</h2>
+          <div class="button-row">
+            <button type="button" class="secondary" id="btn-add-gas-row">新增列</button>
+            <button type="button" class="secondary" id="btn-del-gas-row">刪除最後一列</button>
+          </div>
+        </div>
+
+        <p>欄位會依實驗組與BK組重複數自動生成。可直接貼上Excel資料。若中間有未採氣日，系統會自動將下一次採氣量按區間天數平均分攤。</p>
+
+        <div class="table-wrap">
+          <table id="gas-table" class="edit-table"></table>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="submit">開始分析</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    window.DEMO_TSVS = {{ demo_tsvs | tojson }};
+    window.DEMO_GAS = {{ demo_gas | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
