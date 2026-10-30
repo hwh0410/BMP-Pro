@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ unit_title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="logo-banner">
+    <div class="logo-banner-inner">
+      <a href="/" class="logo-banner-link" aria-label="回到主頁">
+        <img
+          src="{{ url_for('static', filename='images/logo.png') }}"
+          alt="BMP Pro Logo"
+          class="logo-banner-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="/" class="back-link">← 回主頁</a>
+
+    <section class="card placeholder-card">
+      <div class="placeholder-icon">{{ unit_icon }}</div>
+      <h1>{{ unit_title }}</h1>
+      <p class="page-intro">{{ unit_description }}</p>
+      <p class="placeholder-note">此單元目前已完成平台入口銜接，下一步會開始建立功能頁面與資料流程。</p>
+    </section>
+  </div>
+</body>
+</html>
