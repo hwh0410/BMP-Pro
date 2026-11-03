@@ -137,7 +137,7 @@
    if(json.length>42000)throw Error("單組資料超過 JSON 單格安全上限，請先使用本機備份。");
    if((inputs.gas||[]).length*(Number(inputs.expCount)+Number(inputs.bkCount))>2000)throw Error("每日數據超過單次同步建議上限（2,000 筆）；需實作分批匯入。");
    if(!confirm((current?"儲存「"+name+"」的新版本 v"+revision:"新增雲端組別「"+name+"」")+"？舊版紀錄將保留。"))return;
-   const projectRows=current?[]:[[projectId,inputs.project||"BMP Experiment","BMP Pro", "",now,now,"",1]];
+   const projectRows=(current&&current.projectId)?[]:[[projectId,inputs.project||"BMP Experiment","BMP Pro", "",now,now,"",1]];
    const groupRows=[[groupId,projectId,meta.code||"",name,inputs.sample||"",numeric(inputs.weight),meta.material||"","","","",meta.notes||"",Number(inputs.expCount),Number(inputs.bkCount),inputs.negative||"keep",inputs.subtract!==false,created,now,revision,""]];
    const tsvsRows=(inputs.ts||[]).map((r,i)=>[uuid(),groupId,i+1,numeric(r.empty),numeric(r.wet),numeric(r.dry),numeric(r.ash),now]);
    const gasRows=[];
