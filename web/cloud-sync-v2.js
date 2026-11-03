@@ -72,7 +72,15 @@
  function render(){
   const container=$("cloudLibrary");container.replaceChildren();
   if(!latest.length){const p=document.createElement("p");p.className="empty-note";p.textContent="目前尚無雲端完成的分析組別。";container.append(p);return}
-  for(const entry of latest){
+  const filter=$("cloudProjectFilter"),previous=filter.value;
+  filter.replaceChildren();
+  const all=document.createElement("option");all.value="all";all.textContent="所有專案";filter.append(all);
+  const names=[...new Set(latest.map(g=>g.inputs?.project||"未命名專案"))].sort((a,b)=>a.localeCompare(b));
+  names.forEach(name=>{const opt=document.createElement("option");opt.value=name;opt.textContent=name;filter.append(opt)});
+  filter.value=names.includes(previous)?previous:"all";
+  const visible=latest.filter(g=>filter.value==="all"||(g.inputs?.project||"未命名專案")===filter.value);
+  $("cloudCount").textContent="顯示 "+visible.length+" 組 / 共 "+latest.length+" 組";
+  for(const entry of visible){
    const card=document.createElement("article");card.className="group-card";
    const h=document.createElement("h4");h.textContent=entry.name||"未命名組別";card.append(h);
    const desc=document.createElement("small");desc.textContent=[entry.material||"未填原料",entry.inputs.sample||"", "v"+entry.revision,entry.conflicted?"⚠ 同版號衝突":""].filter(Boolean).join(" · ");card.append(desc);
@@ -93,7 +101,7 @@
     controls.append(pick);
     add("載入歷史",()=>{
      const v=choices.find(v=>String(v.revision)+"|"+v.updatedAt===pick.value);
-     if(v){window.BMPGroupLibrary.openCloud(v);editing=null;updateLabel();message("已載入歷史版本 v"+v.revision+" 作為參考；要保留修改請用「建立新雲端組別」。")}
+     if(v&&window.BMPGroupLibrary.openCloud(v)){editing=null;updateLabel();message("已載入歷史版本 v"+v.revision+" 作為參考；要保留修改請用「建立新雲端組別」。")}
     });
    }
    card.append(controls);container.append(card)
@@ -164,6 +172,7 @@
   }catch(e){message("儲存中止／狀態未知："+e.message+"。請先點「讀取雲端組別」確認，再決定是否重試。",true)}
   finally{busy=false;$("cloudSaveBtn").disabled=false}
  }
+ $("cloudProjectFilter").onchange=render;
  $("cloudSaveBtn").onclick=save;
  $("cloudRefreshBtn").onclick=()=>refresh(true).catch(()=>{});
  $("cloudNewBtn").onclick=()=>{editing=null;updateLabel();message("已切換為新增雲端組別模式。現有工作區內容不變。")};
