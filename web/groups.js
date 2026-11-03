@@ -112,5 +112,30 @@
  el("storeGroupBtn").addEventListener("click",saveGroup);
  el("newGroupBtn").addEventListener("click",resetGroup);
  el("compareCsvBtn").addEventListener("click",exportComparison);
+
+ function backupAll(){
+  if(!groups.length){status("沒有可備份的組別，請先儲存實驗組別。");return}
+  download("BMP_Pro_Experiment_Library.json",JSON.stringify({format:"bmp-pro-group-library",version:1,exportedAt:stamp(),groups},null,2),"application/json");
+  status("已匯出 "+groups.length+" 筆組別的完整備份。");
+ }
+ async function importAll(file){
+  if(!file)return;
+  try{
+   const raw=JSON.parse(await file.text());
+   if(raw.format!=="bmp-pro-group-library"||!Array.isArray(raw.groups))throw Error("備份格式不符。請選擇由「備份全部組別」下載的 JSON。");
+   if(raw.groups.length>200)throw Error("單次最多匯入 200 筆組別。");
+   const valid=raw.groups.filter(g=>g&&typeof g.id==="string"&&g.inputs&&Array.isArray(g.inputs.ts)&&Array.isArray(g.inputs.gas)&&g.result&&Array.isArray(g.result.rows)&&typeof g.result.final==="number");
+   if(valid.length!==raw.groups.length)throw Error("備份資料包含不完整的組別，已取消匯入。");
+   if(!confirm("準備匯入 "+valid.length+" 筆組別。若組別 ID 相同，將覆蓋原有儲存紀錄。是否繼續？"))return;
+   const before=groups;const existing=new Map(groups.map(g=>[g.id,g]));
+   valid.forEach(g=>existing.set(g.id,deep(g)));groups=Array.from(existing.values());
+   if(!persist()){groups=before;return}
+   valid.forEach(g=>selected.add(g.id));render();status("已還原 "+valid.length+" 筆組別，現在可載入與比較。");
+  }catch(e){status("備份匯入失敗："+e.message)}finally{el("restoreAllInput").value=""}
+ }
+ el("backupAllBtn").addEventListener("click",backupAll);
+ el("restoreAllInput").addEventListener("change",e=>importAll(e.target.files[0]));
+ el("exportProjectBtn").addEventListener("click",()=>el("saveBtn").click());
+ el("exportResultBtn").addEventListener("click",()=>el("csvBtn").click());
  read();render();
 })();
