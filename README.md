@@ -32,3 +32,15 @@ python run_web.py
 參閱 [設計需求](docs/REDESIGN_BRIEF.md)。
 
 原版 LFS 背景圖片、Logo 尚未匯入；新介面並未依賴這兩張素材。
+
+
+## Google Sheets 團隊雲端同步（測試版）
+
+資料庫：[BMP_Pro_Database](https://docs.google.com/spreadsheets/d/1rPBgNKLWY1RaSqTA_lipTEV3Bdeo6KoOvej6oaDZefI/edit)。
+- 網站使用 Google Identity Services，請用授權的 Google 帳號登入；OAuth scope 為 `https://www.googleapis.com/auth/spreadsheets`（讀寫），Client ID 可公開，但不要在前端加入 Client Secret。
+- 「上傳目前組別快照」會先要求確認，新增一組唯一 ID 的 `Projects`、`Groups`、`TSVS_Data`、`Gas_Data`、`Results`；不覆蓋既有雲端資料。
+- 「讀取雲端組別」從 `Results` 讀取**已完成的快照**；可以將個別組別匯入本機組別庫，之後再載入與比較。
+- 同步需要網路。Google Sheets 修改權限由試算表分享設定控制；Viewer 無法上傳。所有存取權杖只保存在目前分頁的記憶體中。
+- **限制與風險**：此為 append-only 原型，跨工作表寫入不是交易性／原子性操作。中途寫入失敗可能留下未完成資料列；`Results` 最後寫入作為完成標記。不要用正式研究資料做首次測試，先用示範數據驗證。
+- 目前不支援原地更新、刪除雲端組別、交易式衝突鎖定；雲端快照不會自動隨本機修改更新。每次雲端儲存會建立一個新快照。
+- 初期雲端已完成快照列表最多讀取 999 筆；單筆序列化資料長度限制約 42,000 字元。正式上線前應加入分頁、備份、數據一致性及跨帳號權限測試。
