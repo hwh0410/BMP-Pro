@@ -1,8 +1,8 @@
 "use strict";
-/* BMP Pro Google connection diagnostic (read-only). No tokens or spreadsheet data persisted. */
+/* Google OAuth for BMP Pro. Access tokens remain in memory only. */
 (() => {
  const CLIENT_ID="939938555814-vs8evrmpdajdinakhabocvum1e7cvtr0.apps.googleusercontent.com";
- const SCOPE="https://www.googleapis.com/auth/spreadsheets.readonly";
+ const SCOPE="https://www.googleapis.com/auth/spreadsheets";
  const el=id=>document.getElementById(id);
  let tokenClient=null,accessToken=null,expiresAt=0;
  const setStatus=(s,err=false)=>{el("cloudStatus").textContent=s;el("cloudStatus").style.color=err?"#a74e43":"#426579"};
@@ -14,12 +14,17 @@
    callback:r=>{
     if(r.error||!r.access_token){setStatus("授權失敗："+(r.error_description||r.error||"未取得存取權杖"),true);connected(false);return}
     accessToken=r.access_token;expiresAt=Date.now()+(Number(r.expires_in)||3600)*1000;
-    connected(true);setStatus("Google 已授權試算表唯讀存取。下一步貼上團隊試算表 ID，再點選「測試資料庫讀取」。");
+    connected(true);setStatus("Google 已授權Google Sheets 讀寫權限。下一步貼上團隊試算表 ID，再點選「測試資料庫讀取」。");
    },
    error_callback:e=>setStatus("無法完成 Google 授權："+(e?.type||"視窗被關閉／封鎖"),true)
   });
   return true;
  }
+ window.BMPGoogleAuth={
+  getToken(){if(!accessToken||Date.now()>expiresAt-60000)throw Error("Google 授權已過期，請重新連線。");return accessToken;},
+  getSpreadsheetId(){return el("spreadsheetIdInput").value.trim()},
+  connected(){return !!accessToken&&Date.now()<expiresAt-60000}
+ };
  el("googleConnectBtn").addEventListener("click",()=>{if(ready())tokenClient.requestAccessToken({prompt:"consent"})});
  el("googleDisconnectBtn").addEventListener("click",()=>{
   const previous=accessToken;accessToken=null;expiresAt=0;connected(false);
