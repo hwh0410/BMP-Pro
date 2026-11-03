@@ -4,14 +4,20 @@
 <link rel="stylesheet" href="./web/styles.css">
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-<script defer src="./web/app.js"></script></head>
+<script defer src="./web/app.js"></script>
+<script defer src="./web/groups.js"></script></head>
 <body><div class="app">
 <aside class="side"><div class="brand"><span class="brand-icon">◈</span><div><strong>BMP Pro</strong><small>LAB ANALYTICS · V2</small></div></div>
-<div class="side-label">工作空間</div><nav><a class="active" href="#workspace">▦　BMP 分析工作台</a><a href="#visual">⌁　圖表與結果</a><a href="#export">⇩　資料匯出</a></nav>
+<div class="side-label">工作空間</div><nav><a class="active" href="#workspace">▦　BMP 分析工作台</a><a href="#visual">⌁　圖表與結果</a><a href="#groups">▤　組別與專案庫</a><a href="#compare">⌁　跨組比較</a><a href="#export">⇩　資料匯出</a></nav>
 <div class="side-label">後續版本</div><nav><span class="muted">◌　動力學模型擬合</span><span class="muted">◌　多曲線比較</span><span class="muted">◌　共醱酵比例工具</span></nav>
 <div class="side-footer">本機瀏覽器計算<br><span>實驗資料不需上傳伺服器</span></div></aside>
 <main><header><div><div class="eyebrow">RESEARCH WORKSPACE / BMP ANALYSIS</div><h1>實驗分析工作台</h1><p>匯入 Excel、貼上數據或直接填表，即可計算 TS/VS、扣除植種空白並產生累積產氣曲線。</p></div><div class="header-actions"><button id="demoBtn" class="btn secondary">載入示範資料</button><button id="saveBtn" class="btn primary">儲存專案 JSON</button></div></header>
 <div class="notice" id="notice">目前為 2.0 第一階段：BMP 基礎計算與製圖已可使用；動力學擬合尚未移植，不會顯示未驗證的擬合數值。</div>
+<section id="groups" class="stack"><div class="section-heading"><div><span class="step">00</span><h2>實驗組別管理</h2></div><span class="hint">瀏覽器本機專案庫 · 可重複開啟與比較</span></div>
+<div class="panel"><div class="group-toolbar"><div class="group-intro"><strong>快速整理原料與實驗組別</strong><p>目前工作中的資料不會自動覆蓋已儲存組別。儲存後可在同一台裝置的瀏覽器載入或比較。</p></div><div class="header-actions"><button id="newGroupBtn" class="btn secondary">＋ 新增空白組別</button><button id="storeGroupBtn" class="btn primary">儲存目前組別</button></div></div>
+<div class="fields metadata-fields"><label>原料／基質<input id="materialName" placeholder="例如：豬糞＋蔬菜葉"></label><label>實驗組別代碼<input id="groupCode" placeholder="例如：SW-1:1"></label><label>操作條件／備註<input id="groupNotes" placeholder="例如：35°C、I/S 4:1"></label></div>
+<div class="micro" id="groupStatus" role="status">尚未儲存實驗組別</div><div id="groupLibrary" class="group-library"></div>
+<div class="micro">隱私提醒：資料保存在目前瀏覽器的 localStorage，不會同步到其他裝置。清除瀏覽資料可能遺失紀錄，請定期匯出 JSON 備份。</div></div></section>
 <section id="workspace" class="stack"><div class="section-heading"><div><span class="step">01</span><h2>建立與匯入</h2></div><span class="hint">支援 .xlsx / .xls / .csv、Excel 貼上</span></div>
 <div class="panel"><div class="fields"><label>專案名稱<input id="project" value="BMP Experiment"></label><label>樣品名稱<input id="sample" value="Sample A"></label><label>濕樣投入量 (g)<input id="weight" type="number" step="any" value="5"></label><label>實驗平行樣數<select id="expCount"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select></label><label>植種空白平行樣數<select id="bkCount"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label></div>
 <div class="import-actions"><label class="btn secondary file-label">↑　匯入 Excel / CSV<input id="fileInput" type="file" accept=".xlsx,.xls,.csv,.json" hidden></label><button id="pasteBtn" class="btn secondary">貼上 Excel 數據</button><button id="clearBtn" class="btn minimal">清空每日數據</button><span class="hint">預期欄位：Day, Exp 1…n, BK 1…n；可在表格直接貼上</span></div></div>
@@ -22,6 +28,9 @@
 <section id="visual" class="stack"><div class="section-heading"><div><span class="step">04</span><h2>分析結果與互動圖表</h2></div><span class="hint" id="analysisStatus">等待分析</span></div><div class="metrics"><div class="metric"><span>平均 TS</span><strong id="tsMetric">—</strong><small>% wet basis</small></div><div class="metric"><span>平均 VS / TS</span><strong id="vsMetric">—</strong><small>% dry basis</small></div><div class="metric"><span>投入 VS</span><strong id="addedMetric">—</strong><small>g-VS</small></div><div class="metric featured"><span>最終累積單位產氣量</span><strong id="yieldMetric">—</strong><small>L/kg-VS</small></div></div>
 <div class="panel plot-panel"><div class="plot-head"><div><h3>累積單位產氣量</h3><p>平均曲線、平行樣及標準差</p></div><label class="check"><input id="showReps" type="checkbox"> 顯示各平行樣</label></div><div id="chart" class="chart"><p>載入示範資料或輸入實驗數據後點選「計算並更新圖表」。</p></div></div>
 <div class="panel"><div class="section-heading nested"><div><h3>計算明細</h3><p>可直接下載結果 CSV</p></div><button id="csvBtn" class="btn secondary small">↓ 匯出 CSV</button></div><div class="table-scroll"><table id="resultTable"><thead><tr><th>Day</th><th>平均日產氣 (L/kg-VS)</th><th>累積平均 (L/kg-VS)</th><th>累積 SD</th></tr></thead><tbody></tbody></table></div></div></section>
+<section id="compare" class="stack"><div class="section-heading"><div><span class="step">05</span><h2>跨組比較與匯出</h2></div><span class="hint">以已儲存組別的最新分析結果進行比較</span></div>
+<div class="panel"><div class="plot-head"><div><h3>組別比較</h3><p>勾選要比較的組別，疊合累積產氣曲線及最終產率</p></div><button class="btn secondary small" id="compareCsvBtn">↓ 匯出比較 CSV</button></div>
+<div id="compareSelection" class="comparison-checks"></div><div id="compareChart" class="chart compare-chart"><p>請先儲存至少一個有效的實驗組別。</p></div><div class="table-scroll"><table id="compareTable"><thead><tr><th>組別</th><th>原料</th><th>樣品</th><th>TS (%)</th><th>VS/TS (%)</th><th>投入 VS (g)</th><th>最終累積產率 (L/kg-VS)</th></tr></thead><tbody></tbody></table></div></div></section>
 <footer id="export">BMP Pro 2.0 · Phase 1 · 數據僅在本機處理 · 原始 Python 核心保留於 GitHub</footer></main></div>
 <dialog id="pasteDialog"><form method="dialog"><h3>貼上 Excel 資料</h3><p>先複製 Excel 的儲存格，再貼上。第一列可包含 Day / Exp 1 / BK 1 欄名；也可直接貼上數字矩陣。</p><textarea id="pasteArea" rows="8" placeholder="Day&#9;Exp 1&#9;Exp 2&#9;BK 1&#10;0&#9;0&#9;0&#9;0"></textarea><div class="dialog-actions"><button class="btn secondary">取消</button><button class="btn primary" value="import" id="importPaste">匯入</button></div></form></dialog>
 </body></html>
