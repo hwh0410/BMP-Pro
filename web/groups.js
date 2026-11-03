@@ -137,6 +137,19 @@
  el("restoreAllInput").addEventListener("change",e=>importAll(e.target.files[0]));
  el("exportProjectBtn").addEventListener("click",()=>el("saveBtn").click());
  el("exportResultBtn").addEventListener("click",()=>el("csvBtn").click());
- window.BMPGroupLibrary={collect,meta,all:()=>deep(groups),importOne(group){if(!group||!group.id||!group.inputs||!group.result)throw Error("群組資料格式不完整");const index=groups.findIndex(g=>g.id===group.id);if(index!==-1){if(!confirm("本機已有同 ID 組別，確定要以雲端版本覆蓋？"))return false;groups.splice(index,1)}groups.unshift(deep(group));if(!persist())return false;selected.add(group.id);render();return true}};
+ window.BMPGroupLibrary={collect,meta,all:()=>deep(groups),
+ openCloud(group){
+  if(!group?.inputs||!group?.result)throw Error("雲端資料格式不完整");
+  if(!confirm("載入雲端組別將取代目前未儲存的輸入數據，確定繼續？"))return false;
+  currentId=null;
+  restore(deep(group.inputs));
+  el("materialName").value=group.material||"";
+  el("groupCode").value=group.code||"";
+  el("groupNotes").value=group.notes||"";
+  status("已載入雲端「"+group.name+"」。若要留存本機副本，請按「儲存目前組別」。");
+  document.getElementById("workspace")?.scrollIntoView({behavior:"smooth"});
+  return true;
+ },
+ importOne(group){if(!group||!group.id||!group.inputs||!group.result)throw Error("群組資料格式不完整");const index=groups.findIndex(g=>g.id===group.id);if(index!==-1){if(!confirm("本機已有同 ID 組別，確定要以雲端版本覆蓋？"))return false;groups.splice(index,1)}groups.unshift(deep(group));if(!persist())return false;selected.add(group.id);render();return true}};
  read();render();
 })();
